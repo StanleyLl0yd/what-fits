@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>What Fits? — что подходит к вашему устройству</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #667085;
+      --line: #e4e7ec;
+      --accent: #111827;
+      --success: #087443;
+      --success-bg: #ecfdf3;
+      --warning: #b54708;
+      --warning-bg: #fffaeb;
+      --danger: #b42318;
+      --danger-bg: #fef3f2;
+      --shadow: 0 16px 40px rgba(17, 24, 39, .08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .shell {
+      width: min(760px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 56px 0 80px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 42px;
+    }
+
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      background: var(--accent);
+      color: white;
+      font-weight: 800;
+      letter-spacing: -.04em;
+    }
+
+    .brand strong { font-size: 20px; letter-spacing: -.02em; }
+    .brand span { display: block; color: var(--muted); font-size: 13px; margin-top: 1px; }
+
+    .hero h1 {
+      margin: 0;
+      max-width: 620px;
+      font-size: clamp(34px, 7vw, 58px);
+      line-height: 1.02;
+      letter-spacing: -.055em;
+    }
+
+    .hero p {
+      margin: 18px 0 30px;
+      max-width: 590px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.55;
+    }
+
+    .search-card, .result-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .search-card { padding: 18px; }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+
+    input {
+      width: 100%;
+      min-width: 0;
+      height: 54px;
+      border: 1px solid #d0d5dd;
+      border-radius: 14px;
+      padding: 0 16px;
+      background: white;
+      color: var(--text);
+      font: inherit;
+      font-size: 17px;
+      outline: none;
+      transition: border .15s ease, box-shadow .15s ease;
+    }
+
+    input:focus {
+      border-color: #667085;
+      box-shadow: 0 0 0 4px rgba(17, 24, 39, .07);
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .primary {
+      height: 54px;
+      padding: 0 24px;
+      background: var(--accent);
+      color: white;
+      font-weight: 700;
+    }
+
+    .primary:disabled { opacity: .55; cursor: wait; }
+
+    .hint {
+      margin: 12px 3px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .chip {
+      padding: 8px 11px;
+      background: #f2f4f7;
+      color: #344054;
+      font-size: 13px;
+    }
+
+    #result { margin-top: 22px; }
+    .result-card { padding: 24px; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+
+    .status.success { color: var(--success); background: var(--success-bg); }
+    .status.warning { color: var(--warning); background: var(--warning-bg); }
+    .status.danger { color: var(--danger); background: var(--danger-bg); }
+
+    .device-name {
+      margin: 15px 0 4px;
+      font-size: 26px;
+      line-height: 1.2;
+      letter-spacing: -.03em;
+    }
+
+    .device-meta { color: var(--muted); font-size: 14px; }
+
+    .section-title {
+      margin: 26px 0 12px;
+      color: #475467;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .fit-list { display: grid; gap: 10px; }
+
+    .fit {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 17px;
+    }
+
+    .fit-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .fit-number {
+      font-size: 24px;
+      line-height: 1.05;
+      font-weight: 820;
+      letter-spacing: -.035em;
+    }
+
+    .fit-name { margin-top: 5px; color: #475467; font-size: 14px; }
+
+    .fit-yield {
+      white-space: nowrap;
+      padding: 6px 9px;
+      border-radius: 9px;
+      background: #f2f4f7;
+      color: #475467;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .fit-footer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-top: 15px;
+      padding-top: 13px;
+      border-top: 1px solid #f0f1f3;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .source {
+      color: #344054;
+      font-weight: 650;
+      text-decoration: none;
+    }
+
+    .source:hover { text-decoration: underline; }
+
+    .candidates { display: grid; gap: 9px; margin-top: 16px; }
+
+    .candidate {
+      width: 100%;
+      padding: 14px 15px;
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--text);
+      text-align: left;
+      font-weight: 650;
+    }
+
+    .candidate:hover { background: #f9fafb; }
+    .candidate small { display: block; color: var(--muted); font-weight: 500; margin-top: 3px; }
+
+    .empty-title { margin: 14px 0 5px; font-size: 22px; letter-spacing: -.025em; }
+    .empty-copy { margin: 0; color: var(--muted); line-height: 1.5; }
+
+    .loading {
+      padding: 22px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .footer {
+      margin-top: 28px;
+      color: #98a2b3;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    @media (max-width: 580px) {
+      .shell { width: min(100% - 24px, 760px); padding-top: 28px; }
+      .brand { margin-bottom: 32px; }
+      .hero p { font-size: 16px; }
+      .search-row { grid-template-columns: 1fr; }
+      .primary { width: 100%; }
+      .result-card { padding: 18px; }
+      .fit-head { display: block; }
+      .fit-yield { display: inline-block; margin-top: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="brand">
+      <div class="logo">WF</div>
+      <div>
+        <strong>What Fits?</strong>
+        <span>Прототип для российского рынка</span>
+      </div>
+    </div>
+
+    <section class="hero">
+      <h1>Что купить для вашего устройства?</h1>
+      <p>Введите модель принтера — покажем точно совместимые расходники и источник, которым подтверждена совместимость.</p>
+    </section>
+
+    <section class="search-card">
+      <form id="searchForm" class="search-row">
+        <input id="query" name="q" type="search" autocomplete="off" spellcheck="false" placeholder="Например, P2500W" aria-label="Модель принтера">
+        <button id="submit" class="primary" type="submit">Найти</button>
+      </form>
+      <div class="hint">Сейчас в тестовой базе: 50 моделей Pantum для рынка РФ.</div>
+      <div class="examples" aria-label="Примеры">
+        <button class="chip" type="button" data-query="P2500W">P2500W</button>
+        <button class="chip" type="button" data-query="P2502W">P2502W</button>
+        <button class="chip" type="button" data-query="P3305DN">P3305DN</button>
+        <button class="chip" type="button" data-query="BM5100FDW">BM5100FDW</button>
+      </div>
+    </section>
+
+    <section id="result" aria-live="polite"></section>
+
+    <div class="footer">What Fits? v0.0.3 · Ответ «точно подходит» показывается только для проверенных связей.</div>
+  </main>
+
+  <script>
+    const form = document.getElementById('searchForm');
+    const input = document.getElementById('query');
+    const submit = document.getElementById('submit');
+    const result = document.getElementById('result');
+
+    const replacementLabels = {
+      toner_cartridge: 'Тонер-картридж',
+      ink_cartridge: 'Чернильный картридж',
+      drum_unit: 'Фотобарабан',
+      maintenance_kit: 'Комплект обслуживания',
+      printhead: 'Печатающая головка',
+      waste_toner: 'Контейнер отработанного тонера'
+    };
+
+    function esc(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function fitCard(fit) {
+      const type = replacementLabels[fit.replacement_type] || fit.replacement_type;
+      const yieldText = fit.yield_pages ? `≈ ${Number(fit.yield_pages).toLocaleString('ru-RU')} стр.` : '';
+      const source = fit.source_url
+        ? `<a class="source" href="${esc(fit.source_url)}" target="_blank" rel="noopener noreferrer">Источник: ${esc(fit.source_publisher || 'официальные данные')} ↗</a>`
+        : `<span>Источник не указан</span>`;
+      const verified = fit.status === 'VERIFIED' ? '✓ Проверено' : esc(fit.status);
+
+      return `
+        <article class="fit">
+          <div class="fit-head">
+            <div>
+              <div class="fit-number">${esc(fit.part_number)}</div>
+              <div class="fit-name">${esc(type)} · ${esc(fit.canonical_name)}</div>
+            </div>
+            ${yieldText ? `<div class="fit-yield">${yieldText}</div>` : ''}
+          </div>
+          <div class="fit-footer">
+            <span>${verified}</span>
+            ${source}
+          </div>
+        </article>`;
+    }
+
+    function renderExact(data) {
+      const fits = data.fits || [];
+      result.innerHTML = `
+        <div class="result-card">
+          <span class="status success">✓ Точно определено</span>
+          <h2 class="device-name">${esc(data.device.canonical_name)}</h2>
+          <div class="device-meta">Модель: ${esc(data.device.model_code)} · рынок ${esc(data.market)}</div>
+          <div class="section-title">Подходящие расходники</div>
+          ${fits.length
+            ? `<div class="fit-list">${fits.map(fitCard).join('')}</div>`
+            : `<p class="empty-copy">Для этой модели пока нет подтверждённых расходников в выбранном регионе.</p>`}
+        </div>`;
+    }
+
+    function renderAmbiguous(data) {
+      const candidates = data.candidates || [];
+      result.innerHTML = `
+        <div class="result-card">
+          <span class="status warning">Нужно уточнить</span>
+          <h2 class="empty-title">Какой именно у вас принтер?</h2>
+          <p class="empty-copy">Мы нашли несколько похожих моделей. Выберите точную — приложение не будет угадывать совместимость.</p>
+          <div class="candidates">
+            ${candidates.map(c => `
+              <button class="candidate" type="button" data-model="${esc(c.model_code)}">
+                ${esc(c.canonical_name)}
+                <small>Модель ${esc(c.model_code)}</small>
+              </button>`).join('')}
+          </div>
+        </div>`;
+
+      result.querySelectorAll('[data-model]').forEach(button => {
+        button.addEventListener('click', () => {
+          input.value = button.dataset.model;
+          runSearch(button.dataset.model);
+        });
+      });
+    }
+
+    function renderNotFound(data) {
+      result.innerHTML = `
+        <div class="result-card">
+          <span class="status danger">Не найдено</span>
+          <h2 class="empty-title">Пока не знаем эту модель</h2>
+          <p class="empty-copy">Для «${esc(data.query)}» нет достаточно надёжного совпадения. Лучше не выдавать сомнительный расходник, чем посоветовать неправильный.</p>
+        </div>`;
+    }
+
+    function renderError(message) {
+      result.innerHTML = `
+        <div class="result-card">
+          <span class="status danger">Ошибка</span>
+          <h2 class="empty-title">Не удалось выполнить поиск</h2>
+          <p class="empty-copy">${esc(message)}</p>
+        </div>`;
+    }
+
+    async function runSearch(query) {
+      const q = String(query || '').trim();
+      if (q.length < 2) {
+        input.focus();
+        return;
+      }
+
+      submit.disabled = true;
+      submit.textContent = 'Ищем…';
+      result.innerHTML = '<div class="loading">Проверяем модель и совместимость…</div>';
+
+      try {
+        const response = await fetch(`/v1/fit?q=${encodeURIComponent(q)}&market=RU`);
+        if (!response.ok) throw new Error(`API вернул HTTP ${response.status}`);
+        const data = await response.json();
+
+        if (data.status === 'EXACT') renderExact(data);
+        else if (data.status === 'AMBIGUOUS') renderAmbiguous(data);
+        else renderNotFound(data);
+      } catch (error) {
+        renderError(error.message || 'Неизвестная ошибка');
+      } finally {
+        submit.disabled = false;
+        submit.textContent = 'Найти';
+      }
+    }
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      runSearch(input.value);
+    });
+
+    document.querySelectorAll('[data-query]').forEach(button => {
+      button.addEventListener('click', () => {
+        input.value = button.dataset.query;
+        runSearch(button.dataset.query);
+      });
+    });
+  </script>
+</body>
+</html>
