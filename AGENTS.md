@@ -193,7 +193,9 @@ Do not alter historical `checked_at`, `source_checked_at`, or `verified_at` date
 
 - Inspect the working tree before editing and preserve unrelated user changes.
 - Keep changes focused; do not combine catalog expansion, schema redesign, and UI restyling unless the task requires them together.
-- Update documentation when commands, behavior, data scope, or version numbers change.
+- Treat `README.md` maintenance as a required part of every implementation change. After changing code, API behavior, UI, schema, dependencies, catalog scope, commands, or a version, review and update the README in the same change before pushing.
+- Do not finish a version update until the FastAPI version, browser UI version, GitHub Pages version, and README version/current-state description agree.
+- Update other documentation when commands, behavior, data scope, evidence rules, or architecture change.
 - Use an imperative commit subject that describes the outcome.
 - Commit only files belonging to the requested change.
 - Never force-push, rewrite shared history, delete branches, or discard local changes without explicit permission.
@@ -205,5 +207,6 @@ A change is done only when:
 - the requested behavior works end to end;
 - compatibility certainty and regional evidence rules are preserved;
 - relevant validation, syntax, API, and UI checks pass;
+- `README.md` was reviewed and updated for every code, data, schema, UI, API, dependency, command, or version change;
 - documentation and version labels are consistent with the implementation;
 - no secret, generated cache, local environment, or user data is included in the commit.
