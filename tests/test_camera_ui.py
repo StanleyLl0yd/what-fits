@@ -58,5 +58,8 @@ def test_camera_preview_controls_and_privacy_hooks_exist():
     assert "const MAX_PHOTO_BYTES = 10 * 1024 * 1024;" in html
     assert "URL.createObjectURL(file)" in html
     assert "URL.revokeObjectURL" in html
-    assert "new FormData" not in html
-    assert "/v1/ocr" not in html
+    assert "body: photoFile" in html
+    assert "'Content-Type': photoFile.type" in html
+    assert "fetch('/v1/ocr?market=RU'" in html
+    assert "Распознать модель" in html
+    assert "не сохранится" in html

@@ -10,7 +10,7 @@ What Fits? answers one high-stakes compatibility question for the Russian market
 device model -> compatible replacement -> supporting source
 ```
 
-The current prototype covers printers and MFPs. Its catalog contains 50 Pantum models for market `RU`; the running API and browser UI are version `0.0.5`.
+The current prototype covers printers and MFPs. Its catalog contains 50 Pantum models for market `RU`; the running API and browser UI are version `0.0.6`.
 
 Accuracy is more important than recall. A missing result is acceptable; a confidently wrong cartridge is not.
 
@@ -27,8 +27,9 @@ Accuracy is more important than recall. A missing result is acceptable; a confid
 
 ## Repository map
 
-- `backend/app/main.py`: FastAPI application, device matching, compatibility queries, and the root page handler.
-- `backend/static/index.html`: dependency-free, same-origin browser interface. It calls `/v1/fit`.
+- `backend/app/main.py`: FastAPI application, bounded in-memory OCR, device matching, compatibility queries, and the root page handler.
+- `backend/static/index.html`: dependency-free, same-origin browser interface. It calls `/v1/fit` and `/v1/ocr`.
+- `backend/Dockerfile`: Python 3.12 API image with the Tesseract English OCR engine.
 - `backend/requirements.txt`: pinned API dependencies.
 - `db/schema.sql`: PostgreSQL schema and reference data used when a new database volume is initialized.
 - `data/seed_format.schema.json`: JSON Schema for seed records.
@@ -54,6 +55,7 @@ Accuracy is more important than recall. A missing result is acceptable; a confid
   - `EXACT`: one exact model or alias was resolved, with its `fits`.
   - `AMBIGUOUS`: multiple or only fuzzy candidates were found; the client must ask for confirmation.
   - `NOT_FOUND`: no sufficiently reliable candidate was found.
+- `POST /v1/ocr?market=RU` accepts a raw JPEG, PNG, or WebP request body (at most 10 MB) with the matching `Content-Type`, recognizes label text in memory, and returns the same statuses after resolving through `fit`. It adds `input: "OCR"` and deliberately omits the raw OCR `query`.
 
 Exact matching is deliberately OCR-friendly: a normalized model identifier may occur inside a longer label string, and the longest matching identifier wins. Preserve this behavior when refactoring. If multiple devices share the best exact rank, return `AMBIGUOUS` rather than picking one.
 
@@ -86,10 +88,10 @@ python tools/validate_seed.py
 DATABASE_URL=postgresql://whatfits:whatfits@localhost:5432/whatfits python tools/load_seed.py
 ```
 
-Start the API:
+Build and start the API:
 
 ```bash
-docker compose up -d api
+docker compose up -d --build api
 ```
 
 The UI is at `http://localhost:8000/`; interactive API documentation is at `http://localhost:8000/docs`.
@@ -122,9 +124,10 @@ Expected invariants:
 - An unknown model returns `NOT_FOUND`, not a guessed part.
 - A fuzzy or genuinely ambiguous query requires user confirmation.
 - The browser UI handles `EXACT`, `AMBIGUOUS`, `NOT_FOUND`, network errors, and empty `fits` without exposing raw HTML.
-- Camera capture and file selection keep the photo in the browser, enforce JPEG/PNG/WebP and 10 MB limits, and release object URLs when the photo is replaced or the page closes.
+- Camera capture and file selection keep the photo in the browser until explicit recognition, enforce JPEG/PNG/WebP and 10 MB limits, and release object URLs when the photo is replaced or the page closes.
+- OCR bounds encoded size, decoded pixel count, processing dimensions, text length, and recognition time; it does not persist the image or return raw recognized text.
 
-The PostgreSQL integration suite is enabled with `RUN_DB_TESTS=1` after initializing and loading a test database. Add focused tests when introducing non-trivial matching, parsing, upload, or schema behavior; do not rely only on manual browser checks.
+The PostgreSQL integration suite is enabled with `RUN_DB_TESTS=1` after initializing and loading a test database. The generated-image Tesseract test additionally uses `RUN_OCR_TESTS=1` and requires the OCR binary plus DejaVu fonts. Add focused tests when introducing non-trivial matching, parsing, upload, or schema behavior; do not rely only on manual browser checks.
 
 ## Python and SQL conventions
 
@@ -152,7 +155,7 @@ For camera/OCR work:
 - Keep manual model entry available as a fallback.
 - Preserve the current separate camera and gallery inputs, preview, retake, and remove flow.
 - Require an explicit confirmation step whenever OCR does not produce one exact model.
-- Limit accepted file types and upload size, handle camera permission denial, and avoid retaining or logging photos unless retention is an explicit product requirement.
+- Limit accepted file types, encoded size, decoded pixel count, and OCR runtime; handle camera permission denial and avoid retaining or logging photos unless retention is an explicit product requirement.
 - Do not expose an OCR provider key to the browser. Route provider calls through the backend.
 
 ## Catalog and evidence changes

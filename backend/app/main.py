@@ -1,16 +1,28 @@
+from io import BytesIO
 import os
 import re
+import warnings
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
+from PIL import Image, ImageOps, UnidentifiedImageError
 import psycopg
 from psycopg.rows import dict_row
+import pytesseract
+from pytesseract import TesseractError, TesseractNotFoundError
+from starlette.concurrency import run_in_threadpool
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://whatfits:whatfits@localhost:5432/whatfits")
 WEB_INDEX = Path(__file__).resolve().parents[1] / "static" / "index.html"
+MAX_PHOTO_BYTES = 10 * 1024 * 1024
+MAX_PHOTO_PIXELS = 25_000_000
+MAX_OCR_DIMENSION = 2400
+MAX_OCR_TEXT_CHARS = 20_000
+ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
+ALLOWED_PHOTO_FORMATS = {"JPEG", "PNG", "WEBP"}
 
-app = FastAPI(title="What Fits? API", version="0.0.5")
+app = FastAPI(title="What Fits? API", version="0.0.6")
 
 
 def normalize(value: str) -> str:
@@ -20,6 +32,60 @@ def normalize(value: str) -> str:
 
 def conn():
     return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+
+
+def prepare_ocr_image(content: bytes) -> Image.Image:
+    """Decode and resize an untrusted upload without retaining the source image."""
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(content)) as source:
+                if source.format not in ALLOWED_PHOTO_FORMATS:
+                    raise HTTPException(415, "Поддерживаются только JPEG, PNG и WebP.")
+                width, height = source.size
+                if width < 1 or height < 1 or width * height > MAX_PHOTO_PIXELS:
+                    raise HTTPException(413, "Изображение имеет слишком большое разрешение.")
+                source.load()
+                image = ImageOps.exif_transpose(source).copy()
+    except HTTPException:
+        raise
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning):
+        raise HTTPException(413, "Изображение имеет слишком большое разрешение.") from None
+    except (UnidentifiedImageError, OSError, ValueError):
+        raise HTTPException(415, "Файл не удалось прочитать как JPEG, PNG или WebP.") from None
+
+    image.thumbnail((MAX_OCR_DIMENSION, MAX_OCR_DIMENSION), Image.Resampling.LANCZOS)
+    prepared = ImageOps.autocontrast(ImageOps.grayscale(image), cutoff=1)
+
+    longest_side = max(prepared.size)
+    if longest_side and longest_side < 1200:
+        scale = min(3, 1200 / longest_side)
+        prepared = prepared.resize(
+            (max(1, round(prepared.width * scale)), max(1, round(prepared.height * scale))),
+            Image.Resampling.LANCZOS,
+        )
+
+    return prepared
+
+
+def extract_ocr_text(content: bytes) -> str:
+    """Recognize label text locally; the image and raw text are never persisted."""
+    image = prepare_ocr_image(content)
+    try:
+        text = pytesseract.image_to_string(
+            image,
+            lang="eng",
+            config="--oem 3 --psm 11",
+            timeout=8,
+        )
+    except TesseractNotFoundError:
+        raise HTTPException(503, "OCR временно недоступен.") from None
+    except TesseractError:
+        raise HTTPException(422, "Не удалось распознать текст на фотографии.") from None
+    except RuntimeError:
+        raise HTTPException(504, "Распознавание заняло слишком много времени.") from None
+
+    return " ".join(text.split())[:MAX_OCR_TEXT_CHARS]
 
 
 @app.get("/", include_in_schema=False)
@@ -215,3 +281,47 @@ def fit(
         "market": market,
         "candidates": candidates[:5],
     }
+
+
+@app.post(
+    "/v1/ocr",
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {
+                media_type: {"schema": {"type": "string", "format": "binary"}}
+                for media_type in sorted(ALLOWED_PHOTO_TYPES)
+            },
+        }
+    },
+)
+async def ocr_fit(
+    request: Request,
+    market: str = Query("RU", pattern=r"^[A-Z]{2,3}$"),
+):
+    """Recognize a device label and resolve it through the normal fit contract."""
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if content_type not in ALLOWED_PHOTO_TYPES:
+        raise HTTPException(415, "Поддерживаются только JPEG, PNG и WebP.")
+
+    content = bytearray()
+    async for chunk in request.stream():
+        if len(content) + len(chunk) > MAX_PHOTO_BYTES:
+            raise HTTPException(413, "Размер фотографии превышает 10 МБ.")
+        content.extend(chunk)
+    if not content:
+        raise HTTPException(415, "Фотография пуста или повреждена.")
+
+    recognized = await run_in_threadpool(extract_ocr_text, bytes(content))
+    if len(normalize(recognized)) < 2:
+        return {
+            "status": "NOT_FOUND",
+            "market": market,
+            "candidates": [],
+            "input": "OCR",
+        }
+
+    resolution = await run_in_threadpool(fit, recognized, market)
+    response = {key: value for key, value in resolution.items() if key != "query"}
+    response["input"] = "OCR"
+    return response

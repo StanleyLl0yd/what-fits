@@ -1,9 +1,11 @@
 import json
+from io import BytesIO
 import os
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image, ImageDraw, ImageFont
 
 from backend.app import main as api
 
@@ -98,3 +100,31 @@ def test_short_fuzzy_query_is_never_exact():
 
     assert response.status_code == 200
     assert response.json()["status"] in {"AMBIGUOUS", "NOT_FOUND"}
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_OCR_TESTS") != "1",
+    reason="set RUN_OCR_TESTS=1 and install Tesseract for real OCR tests",
+)
+def test_generated_label_resolves_end_to_end_through_real_ocr():
+    image = Image.new("RGB", (1400, 420), "white")
+    font = ImageFont.truetype(
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        130,
+    )
+    ImageDraw.Draw(image).text((45, 110), "PANTUM P2500W", fill="black", font=font)
+    output = BytesIO()
+    image.save(output, format="PNG")
+
+    response = client.post(
+        "/v1/ocr?market=RU",
+        content=output.getvalue(),
+        headers={"Content-Type": "image/png"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "EXACT"
+    assert payload["device"]["model_code"] == "P2500W"
+    assert payload["input"] == "OCR"
+    assert "query" not in payload

@@ -127,7 +127,7 @@
       font-weight: 700;
     }
 
-    .primary:disabled { opacity: .55; cursor: wait; }
+    button:disabled { opacity: .55; cursor: wait; }
 
     .hint {
       margin: 12px 3px 0;
@@ -428,7 +428,7 @@
         <button id="cameraButton" class="camera-button" type="button">📷 Сфотографировать шильдик</button>
         <button id="uploadButton" class="secondary" type="button">Выбрать готовое фото</button>
       </div>
-      <p class="camera-note">Фото обрабатывается только в браузере и пока не отправляется на сервер. JPEG, PNG или WebP, не более 10 МБ.</p>
+      <p class="camera-note">Фото отправится только в это приложение после нажатия «Распознать модель», будет обработано в памяти и не сохранится. JPEG, PNG или WebP, не более 10 МБ.</p>
       <input id="cameraInput" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="Сделать фотографию шильдика" hidden>
       <input id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Выбрать фотографию шильдика" hidden>
 
@@ -444,14 +444,14 @@
         <div class="photo-actions">
           <button id="removePhoto" class="secondary" type="button">Удалить</button>
           <button id="retakePhoto" class="secondary" type="button">Переснять</button>
-          <button id="usePhoto" class="primary" type="button">Использовать фото</button>
+          <button id="usePhoto" class="primary" type="button">Распознать модель</button>
         </div>
       </div>
     </section>
 
     <section id="result" aria-live="polite"></section>
 
-    <div class="footer">What Fits? v0.0.5 · Ответ «точно подходит» показывается только для проверенных связей.</div>
+    <div class="footer">What Fits? v0.0.6 · Ответ «точно подходит» показывается только для проверенных связей.</div>
   </main>
 
   <script>
@@ -475,6 +475,7 @@
     const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
     const ACCEPTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
     let photoUrl = null;
+    let photoFile = null;
 
     const replacementLabels = {
       toner_cartridge: 'Тонер-картридж',
@@ -565,6 +566,15 @@
         </div>`;
     }
 
+    function renderOcrNotFound() {
+      result.innerHTML = `
+        <div class="result-card">
+          <span class="status danger">Модель не распознана</span>
+          <h2 class="empty-title">Попробуйте другое фото</h2>
+          <p class="empty-copy">Снимите шильдик ближе, без бликов и в фокусе. Можно также ввести код модели вручную — приложение не будет угадывать совместимость.</p>
+        </div>`;
+    }
+
     function renderError(message) {
       result.innerHTML = `
         <div class="result-card">
@@ -600,6 +610,7 @@
     function clearPhoto({ clearResult = false } = {}) {
       if (photoUrl) URL.revokeObjectURL(photoUrl);
       photoUrl = null;
+      photoFile = null;
       photoPreview.removeAttribute('src');
       photoName.textContent = '';
       photoMeta.textContent = '';
@@ -629,6 +640,7 @@
       try {
         const dimensions = await imageDimensions(nextUrl);
         photoUrl = nextUrl;
+        photoFile = file;
         photoPreview.src = photoUrl;
         photoName.textContent = file.name || 'Фото с камеры';
         photoMeta.textContent = `${dimensions.width} × ${dimensions.height} · ${formatFileSize(file.size)}`;
@@ -646,16 +658,47 @@
       }
     }
 
-    function confirmPhoto() {
-      if (!photoUrl) return;
-      photoMessage.textContent = 'Фото готово. Автоматическое распознавание модели будет подключено на следующем этапе.';
-      result.innerHTML = `
-        <div class="result-card">
-          <span class="status warning">Фото готово</span>
-          <h2 class="empty-title">Введите модель вручную</h2>
-          <p class="empty-copy">Камера и предпросмотр уже работают. OCR пока не подключён, поэтому приложение ещё не извлекает модель из фотографии.</p>
-        </div>`;
-      input.focus();
+    function setPhotoBusy(isBusy) {
+      usePhoto.disabled = isBusy;
+      removePhoto.disabled = isBusy;
+      retakePhoto.disabled = isBusy;
+      usePhoto.textContent = isBusy ? 'Распознаём…' : 'Распознать модель';
+    }
+
+    async function recognizePhoto() {
+      if (!photoFile) return;
+
+      setPhotoBusy(true);
+      photoMessage.textContent = 'Распознаём код модели и проверяем совместимость…';
+      result.innerHTML = '<div class="loading">Читаем шильдик и ищем точную модель…</div>';
+
+      try {
+        const response = await fetch('/v1/ocr?market=RU', {
+          method: 'POST',
+          headers: { 'Content-Type': photoFile.type },
+          body: photoFile
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || `API вернул HTTP ${response.status}`);
+
+        if (data.status === 'EXACT') {
+          photoMessage.textContent = 'Модель распознана и проверена по каталогу.';
+          renderExact(data);
+        } else if (data.status === 'AMBIGUOUS') {
+          photoMessage.textContent = 'Нужно подтвердить точную модель.';
+          renderAmbiguous(data);
+        } else if (data.status === 'NOT_FOUND') {
+          photoMessage.textContent = 'Надёжно распознать модель не удалось.';
+          renderOcrNotFound();
+        } else {
+          throw new Error('OCR вернул неизвестный статус.');
+        }
+      } catch (error) {
+        photoMessage.textContent = 'Распознавание не завершено. Фото можно переснять или выбрать заново.';
+        renderError(error.message || 'Не удалось распознать фотографию.');
+      } finally {
+        setPhotoBusy(false);
+      }
     }
 
     async function runSearch(query) {
@@ -696,7 +739,7 @@
     uploadInput.addEventListener('change', () => handlePhoto(uploadInput.files?.[0]));
     removePhoto.addEventListener('click', () => clearPhoto({ clearResult: true }));
     retakePhoto.addEventListener('click', () => cameraInput.click());
-    usePhoto.addEventListener('click', confirmPhoto);
+    usePhoto.addEventListener('click', recognizePhoto);
     window.addEventListener('beforeunload', () => {
       if (photoUrl) URL.revokeObjectURL(photoUrl);
     });

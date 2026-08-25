@@ -16,7 +16,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -36,6 +36,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://whatfits:whatfits@localhost:5432/whatfits
       RUN_DB_TESTS: "1"
+      RUN_OCR_TESTS: "1"
       PYTHONDONTWRITEBYTECODE: "1"
 
     steps:
@@ -51,6 +52,11 @@ jobs:
             backend/requirements.txt
             tools/requirements.txt
             requirements-dev.txt
+
+      - name: Install OCR engine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-eng fonts-dejavu-core
 
       - name: Install dependencies
         run: python -m pip install -r requirements-dev.txt
@@ -70,3 +76,5 @@ jobs:
       - name: Run tests
         run: python -m pytest
 
+      - name: Build API image
+        run: docker build -t what-fits-api:ci backend
