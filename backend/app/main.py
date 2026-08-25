@@ -1,12 +1,16 @@
 import os
 import re
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 import psycopg
 from psycopg.rows import dict_row
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://whatfits:whatfits@localhost:5432/whatfits")
-app = FastAPI(title="What Fits? API", version="0.0.2")
+WEB_INDEX = Path(__file__).resolve().parents[1] / "static" / "index.html"
+
+app = FastAPI(title="What Fits? API", version="0.0.3")
 
 
 def normalize(value: str) -> str:
@@ -16,6 +20,13 @@ def normalize(value: str) -> str:
 
 def conn():
     return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+
+
+@app.get("/", include_in_schema=False)
+def web_app():
+    if not WEB_INDEX.exists():
+        raise HTTPException(500, "web interface not found")
+    return FileResponse(WEB_INDEX)
 
 
 @app.get("/health")
