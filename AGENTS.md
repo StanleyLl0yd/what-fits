@@ -10,7 +10,7 @@ What Fits? answers one high-stakes compatibility question for the Russian market
 device model -> compatible replacement -> supporting source
 ```
 
-The current prototype covers printers and MFPs. Its catalog contains 50 Pantum models for market `RU`; the running API and browser UI are version `0.0.3`.
+The current prototype covers printers and MFPs. Its catalog contains 50 Pantum models for market `RU`; the running API and browser UI are version `0.0.4`.
 
 Accuracy is more important than recall. A missing result is acceptable; a confidently wrong cartridge is not.
 
@@ -39,6 +39,9 @@ Accuracy is more important than recall. A missing result is acceptable; a confid
 - `tools/demo_search.py`: zero-database catalog search demo; it is not the production matching algorithm.
 - `docker-compose.yml`: local PostgreSQL 16 and Python 3.12 API services.
 - `docs/index.html`: separate minimal GitHub Pages project page; it is not the FastAPI UI.
+- `requirements-dev.txt`: pinned local and CI test dependencies.
+- `tests/`: unit, catalog-policy, and PostgreSQL integration tests.
+- `.github/workflows/ci.yml`: CI validation on pushes and pull requests.
 
 ## Current API contract
 
@@ -72,7 +75,7 @@ Create a local Python environment and install the tools:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r backend/requirements.txt -r tools/requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
 
 Validate and load the catalog:
@@ -98,7 +101,8 @@ Run the checks appropriate to the files changed. At minimum, before committing:
 
 ```bash
 python tools/validate_seed.py
-python -m compileall -q backend tools
+python -m compileall -q backend tools tests
+python -m pytest
 ```
 
 For API, matching, database, or UI changes, also run the stack and check:
@@ -118,7 +122,7 @@ Expected invariants:
 - A fuzzy or genuinely ambiguous query requires user confirmation.
 - The browser UI handles `EXACT`, `AMBIGUOUS`, `NOT_FOUND`, network errors, and empty `fits` without exposing raw HTML.
 
-There is no automated test suite yet. Add focused tests when introducing non-trivial matching, parsing, upload, or schema behavior; do not rely only on manual browser checks.
+The PostgreSQL integration suite is enabled with `RUN_DB_TESTS=1` after initializing and loading a test database. Add focused tests when introducing non-trivial matching, parsing, upload, or schema behavior; do not rely only on manual browser checks.
 
 ## Python and SQL conventions
 

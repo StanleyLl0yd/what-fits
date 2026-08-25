@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: whatfits
+          POSTGRES_USER: whatfits
+          POSTGRES_PASSWORD: whatfits
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U whatfits -d whatfits"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://whatfits:whatfits@localhost:5432/whatfits
+      RUN_DB_TESTS: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            tools/requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Validate catalog
+        run: python tools/validate_seed.py
+
+      - name: Initialize database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
+
+      - name: Load catalog
+        run: python tools/load_seed.py
+
+      - name: Compile Python sources
+        run: python -m compileall -q backend tools tests
+
+      - name: Run tests
+        run: python -m pytest
+

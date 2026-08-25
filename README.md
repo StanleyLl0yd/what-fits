@@ -1,4 +1,4 @@
-# What Fits? — RU prototype v0.0.3
+# What Fits? — RU prototype v0.0.4
 
 **What Fits?** помогает определить модель принтера или МФУ и показывает совместимые расходники вместе с источником, подтверждающим совместимость.
 
@@ -19,7 +19,10 @@
 - PostgreSQL-схема `device → replacement → evidence`;
 - региональная привязка совместимости к рынку `RU`;
 - seed-каталог из 50 моделей Pantum;
-- подтверждающая ссылка, издатель и дата проверки для каждой совместимости.
+- подтверждающая ссылка, издатель и дата проверки для каждой совместимости;
+- unit-тесты логики API и правил каталога;
+- интеграционные тесты всех seed-моделей на PostgreSQL 16;
+- автоматический CI для каждого push и pull request.
 
 Камера и распознавание текста по фотографии пока не реализованы. API уже принимает OCR-подобный текст, поэтому будущая камера будет использовать тот же безопасный механизм поиска совместимости.
 
@@ -49,7 +52,7 @@ docker compose up -d db
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r backend/requirements.txt -r tools/requirements.txt
+python -m pip install -r requirements-dev.txt
 python tools/validate_seed.py
 DATABASE_URL=postgresql://whatfits:whatfits@localhost:5432/whatfits python tools/load_seed.py
 ```
@@ -87,8 +90,17 @@ P2500W → Pantum P2500W → PC-211P
 
 ```bash
 python tools/validate_seed.py
-python -m compileall -q backend tools
+python -m compileall -q backend tools tests
+python -m pytest
 ```
+
+Интеграционные тесты требуют уже инициализированную и загруженную тестовую базу:
+
+```bash
+RUN_DB_TESTS=1 DATABASE_URL=postgresql://whatfits:whatfits@localhost:5432/whatfits python -m pytest
+```
+
+GitHub Actions выполняет этот полный сценарий автоматически на чистой PostgreSQL 16.
 
 ## API
 
@@ -126,6 +138,7 @@ python -m compileall -q backend tools
 
 ```text
 what-fits/
+├── .github/workflows/ci.yml           # GitHub Actions с PostgreSQL
 ├── AGENTS.md                         # правила работы с репозиторием
 ├── backend/
 │   ├── app/main.py                   # FastAPI и логика поиска
@@ -142,7 +155,10 @@ what-fits/
 │   ├── demo_search.py
 │   ├── load_seed.py
 │   └── validate_seed.py
+├── tests/                            # unit- и integration-тесты
 ├── docker-compose.yml
+├── pytest.ini
+├── requirements-dev.txt
 └── README.md
 ```
 
@@ -190,7 +206,7 @@ what-fits/
 2. Разделить выбор типа расходника, когда у устройства доступны картридж и фотобарабан.
 3. Добавить сохранение «Моих устройств» поверх уже подготовленной схемы БД.
 4. Расширить RU-verified каталог моделями HP, Canon, Epson и Brother.
-5. Добавить автоматические тесты для matching-, OCR- и API-сценариев.
+5. Пополнять regression-набор реальными обезличенными фотографиями шильдиков после появления OCR.
 
 ## Поддержка README и версий
 
