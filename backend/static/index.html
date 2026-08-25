@@ -149,6 +149,113 @@
       font-size: 13px;
     }
 
+    [hidden] { display: none !important; }
+
+    .camera-divider {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: center;
+      margin: 20px 0;
+      color: #98a2b3;
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .camera-divider::before, .camera-divider::after {
+      content: '';
+      height: 1px;
+      background: var(--line);
+    }
+
+    .camera-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .camera-button, .secondary {
+      min-height: 50px;
+      padding: 11px 16px;
+      border: 1px solid #d0d5dd;
+      background: white;
+      color: #344054;
+      font-weight: 700;
+    }
+
+    .camera-button {
+      border-color: #111827;
+      background: #111827;
+      color: white;
+    }
+
+    .camera-note {
+      margin: 10px 3px 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .photo-panel {
+      margin-top: 16px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f9fafb;
+      outline: none;
+    }
+
+    .photo-preview-wrap {
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      min-height: 220px;
+      max-height: 440px;
+      border-radius: 12px;
+      background: #101828;
+    }
+
+    .photo-preview {
+      display: block;
+      width: 100%;
+      max-height: 440px;
+      object-fit: contain;
+    }
+
+    .photo-info {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .photo-info strong {
+      overflow: hidden;
+      color: #344054;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .photo-message {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .photo-actions {
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .photo-actions .primary { width: 100%; }
+
     #result { margin-top: 22px; }
     .result-card { padding: 24px; }
 
@@ -278,7 +385,10 @@
       .brand { margin-bottom: 32px; }
       .hero p { font-size: 16px; }
       .search-row { grid-template-columns: 1fr; }
+      .camera-actions { grid-template-columns: 1fr; }
       .primary { width: 100%; }
+      .photo-actions { grid-template-columns: 1fr 1fr; }
+      .photo-actions .primary { grid-column: 1 / -1; }
       .result-card { padding: 18px; }
       .fit-head { display: block; }
       .fit-yield { display: inline-block; margin-top: 10px; }
@@ -297,7 +407,7 @@
 
     <section class="hero">
       <h1>Что купить для вашего устройства?</h1>
-      <p>Введите модель принтера — покажем точно совместимые расходники и источник, которым подтверждена совместимость.</p>
+      <p>Введите модель принтера или сфотографируйте шильдик — покажем точно совместимые расходники и подтверждающий источник.</p>
     </section>
 
     <section class="search-card">
@@ -312,11 +422,36 @@
         <button class="chip" type="button" data-query="P3305DN">P3305DN</button>
         <button class="chip" type="button" data-query="BM5100FDW">BM5100FDW</button>
       </div>
+
+      <div class="camera-divider">или</div>
+      <div class="camera-actions">
+        <button id="cameraButton" class="camera-button" type="button">📷 Сфотографировать шильдик</button>
+        <button id="uploadButton" class="secondary" type="button">Выбрать готовое фото</button>
+      </div>
+      <p class="camera-note">Фото обрабатывается только в браузере и пока не отправляется на сервер. JPEG, PNG или WebP, не более 10 МБ.</p>
+      <input id="cameraInput" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="Сделать фотографию шильдика" hidden>
+      <input id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Выбрать фотографию шильдика" hidden>
+
+      <div id="photoPanel" class="photo-panel" tabindex="-1" hidden>
+        <div class="photo-preview-wrap">
+          <img id="photoPreview" class="photo-preview" alt="Предпросмотр фотографии шильдика">
+        </div>
+        <div class="photo-info">
+          <strong id="photoName"></strong>
+          <span id="photoMeta"></span>
+        </div>
+        <p id="photoMessage" class="photo-message" role="status" aria-live="polite">Проверьте, что код модели читается и не закрыт бликом.</p>
+        <div class="photo-actions">
+          <button id="removePhoto" class="secondary" type="button">Удалить</button>
+          <button id="retakePhoto" class="secondary" type="button">Переснять</button>
+          <button id="usePhoto" class="primary" type="button">Использовать фото</button>
+        </div>
+      </div>
     </section>
 
     <section id="result" aria-live="polite"></section>
 
-    <div class="footer">What Fits? v0.0.4 · Ответ «точно подходит» показывается только для проверенных связей.</div>
+    <div class="footer">What Fits? v0.0.5 · Ответ «точно подходит» показывается только для проверенных связей.</div>
   </main>
 
   <script>
@@ -324,6 +459,22 @@
     const input = document.getElementById('query');
     const submit = document.getElementById('submit');
     const result = document.getElementById('result');
+    const cameraButton = document.getElementById('cameraButton');
+    const uploadButton = document.getElementById('uploadButton');
+    const cameraInput = document.getElementById('cameraInput');
+    const uploadInput = document.getElementById('uploadInput');
+    const photoPanel = document.getElementById('photoPanel');
+    const photoPreview = document.getElementById('photoPreview');
+    const photoName = document.getElementById('photoName');
+    const photoMeta = document.getElementById('photoMeta');
+    const photoMessage = document.getElementById('photoMessage');
+    const removePhoto = document.getElementById('removePhoto');
+    const retakePhoto = document.getElementById('retakePhoto');
+    const usePhoto = document.getElementById('usePhoto');
+
+    const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+    const ACCEPTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    let photoUrl = null;
 
     const replacementLabels = {
       toner_cartridge: 'Тонер-картридж',
@@ -423,6 +574,90 @@
         </div>`;
     }
 
+    function renderPhotoError(message) {
+      result.innerHTML = `
+        <div class="result-card">
+          <span class="status danger">Фото не принято</span>
+          <h2 class="empty-title">Выберите другое изображение</h2>
+          <p class="empty-copy">${esc(message)}</p>
+        </div>`;
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
+      return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} МБ`;
+    }
+
+    function imageDimensions(url) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+        image.onerror = () => reject(new Error('Файл не удалось прочитать как изображение.'));
+        image.src = url;
+      });
+    }
+
+    function clearPhoto({ clearResult = false } = {}) {
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
+      photoUrl = null;
+      photoPreview.removeAttribute('src');
+      photoName.textContent = '';
+      photoMeta.textContent = '';
+      photoMessage.textContent = 'Проверьте, что код модели читается и не закрыт бликом.';
+      photoPanel.hidden = true;
+      cameraInput.value = '';
+      uploadInput.value = '';
+      if (clearResult) result.innerHTML = '';
+    }
+
+    async function handlePhoto(file) {
+      if (!file) return;
+      clearPhoto({ clearResult: true });
+
+      if (!ACCEPTED_PHOTO_TYPES.has(file.type)) {
+        renderPhotoError('Поддерживаются только JPEG, PNG и WebP.');
+        return;
+      }
+
+      if (file.size > MAX_PHOTO_BYTES) {
+        renderPhotoError('Размер фотографии превышает 10 МБ.');
+        return;
+      }
+
+      const nextUrl = URL.createObjectURL(file);
+
+      try {
+        const dimensions = await imageDimensions(nextUrl);
+        photoUrl = nextUrl;
+        photoPreview.src = photoUrl;
+        photoName.textContent = file.name || 'Фото с камеры';
+        photoMeta.textContent = `${dimensions.width} × ${dimensions.height} · ${formatFileSize(file.size)}`;
+        photoMessage.textContent = dimensions.width < 640 || dimensions.height < 480
+          ? 'Фото небольшое. Убедитесь, что код модели хорошо читается.'
+          : 'Проверьте, что код модели читается и не закрыт бликом.';
+        photoPanel.hidden = false;
+        photoPanel.focus();
+      } catch (error) {
+        URL.revokeObjectURL(nextUrl);
+        renderPhotoError(error.message || 'Не удалось открыть фотографию.');
+      } finally {
+        cameraInput.value = '';
+        uploadInput.value = '';
+      }
+    }
+
+    function confirmPhoto() {
+      if (!photoUrl) return;
+      photoMessage.textContent = 'Фото готово. Автоматическое распознавание модели будет подключено на следующем этапе.';
+      result.innerHTML = `
+        <div class="result-card">
+          <span class="status warning">Фото готово</span>
+          <h2 class="empty-title">Введите модель вручную</h2>
+          <p class="empty-copy">Камера и предпросмотр уже работают. OCR пока не подключён, поэтому приложение ещё не извлекает модель из фотографии.</p>
+        </div>`;
+      input.focus();
+    }
+
     async function runSearch(query) {
       const q = String(query || '').trim();
       if (q.length < 2) {
@@ -453,6 +688,17 @@
     form.addEventListener('submit', event => {
       event.preventDefault();
       runSearch(input.value);
+    });
+
+    cameraButton.addEventListener('click', () => cameraInput.click());
+    uploadButton.addEventListener('click', () => uploadInput.click());
+    cameraInput.addEventListener('change', () => handlePhoto(cameraInput.files?.[0]));
+    uploadInput.addEventListener('change', () => handlePhoto(uploadInput.files?.[0]));
+    removePhoto.addEventListener('click', () => clearPhoto({ clearResult: true }));
+    retakePhoto.addEventListener('click', () => cameraInput.click());
+    usePhoto.addEventListener('click', confirmPhoto);
+    window.addEventListener('beforeunload', () => {
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
     });
 
     document.querySelectorAll('[data-query]').forEach(button => {

@@ -10,7 +10,7 @@ What Fits? answers one high-stakes compatibility question for the Russian market
 device model -> compatible replacement -> supporting source
 ```
 
-The current prototype covers printers and MFPs. Its catalog contains 50 Pantum models for market `RU`; the running API and browser UI are version `0.0.4`.
+The current prototype covers printers and MFPs. Its catalog contains 50 Pantum models for market `RU`; the running API and browser UI are version `0.0.5`.
 
 Accuracy is more important than recall. A missing result is acceptable; a confidently wrong cartridge is not.
 
@@ -41,6 +41,7 @@ Accuracy is more important than recall. A missing result is acceptable; a confid
 - `docs/index.html`: separate minimal GitHub Pages project page; it is not the FastAPI UI.
 - `requirements-dev.txt`: pinned local and CI test dependencies.
 - `tests/`: unit, catalog-policy, and PostgreSQL integration tests.
+- `tests/fixtures/camera/`: manifest and privacy rules for future anonymized OCR regression images.
 - `.github/workflows/ci.yml`: CI validation on pushes and pull requests.
 
 ## Current API contract
@@ -121,6 +122,7 @@ Expected invariants:
 - An unknown model returns `NOT_FOUND`, not a guessed part.
 - A fuzzy or genuinely ambiguous query requires user confirmation.
 - The browser UI handles `EXACT`, `AMBIGUOUS`, `NOT_FOUND`, network errors, and empty `fits` without exposing raw HTML.
+- Camera capture and file selection keep the photo in the browser, enforce JPEG/PNG/WebP and 10 MB limits, and release object URLs when the photo is replaced or the page closes.
 
 The PostgreSQL integration suite is enabled with `RUN_DB_TESTS=1` after initializing and loading a test database. Add focused tests when introducing non-trivial matching, parsing, upload, or schema behavior; do not rely only on manual browser checks.
 
@@ -145,9 +147,10 @@ The PostgreSQL integration suite is enabled with `RUN_DB_TESTS=1` after initiali
 - Preserve accessible labels, keyboard submission, loading states, error states, and `aria-live` result announcements.
 - External links must use `rel="noopener noreferrer"`.
 
-If camera/OCR is added:
+For camera/OCR work:
 
 - Keep manual model entry available as a fallback.
+- Preserve the current separate camera and gallery inputs, preview, retake, and remove flow.
 - Require an explicit confirmation step whenever OCR does not produce one exact model.
 - Limit accepted file types and upload size, handle camera permission denial, and avoid retaining or logging photos unless retention is an explicit product requirement.
 - Do not expose an OCR provider key to the browser. Route provider calls through the backend.

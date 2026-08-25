@@ -10,7 +10,7 @@ from psycopg.rows import dict_row
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://whatfits:whatfits@localhost:5432/whatfits")
 WEB_INDEX = Path(__file__).resolve().parents[1] / "static" / "index.html"
 
-app = FastAPI(title="What Fits? API", version="0.0.4")
+app = FastAPI(title="What Fits? API", version="0.0.5")
 
 
 def normalize(value: str) -> str:
