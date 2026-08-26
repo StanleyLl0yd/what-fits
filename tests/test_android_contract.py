@@ -11,7 +11,7 @@ def test_android_release_is_offline_first_and_gms_free():
     gradle = APP_GRADLE.read_text(encoding="utf-8")
     manifest = MANIFEST.read_text(encoding="utf-8")
 
-    assert 'versionName = "0.0.8"' in gradle
+    assert 'versionName = "0.0.9"' in gradle
     assert 'applicationId = "app.whatfits"' in gradle
     assert '"../../data"' in gradle
     assert "tesseract4android:4.9.0" in gradle
@@ -26,6 +26,15 @@ def test_android_displays_local_ocr_diagnostics():
     assert "Тестовый режим · распознано на фото" in source
     assert "recognizedText = recognized.ifBlank" in source
     assert "никуда не отправляется" in source
+
+
+def test_android_ocr_uses_upscaled_overlapping_crops():
+    source = (ANDROID / "app" / "src" / "main" / "java" / "app" / "whatfits" / "ocr" / "TesseractOcrEngine.kt").read_text(encoding="utf-8")
+
+    assert "MAX_UPSCALE = 4f" in source
+    assert "Crop(0.42f, 0f, 1f, 0.58f, 2000)" in source
+    assert '"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- "' in source
+    assert "MODEL_TOKEN.containsMatchIn(text)" in source
 
 
 def test_android_build_has_runtime_dependency_guard():

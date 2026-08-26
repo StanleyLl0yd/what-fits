@@ -313,7 +313,7 @@ private fun SearchScreen(
             result?.let { ResultSection(it, onCandidate) }
 
             Text(
-                "What Fits? v0.0.8 · Offline-first Android prototype",
+                "What Fits? v0.0.9 · Offline-first Android prototype",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
