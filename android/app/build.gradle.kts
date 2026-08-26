@@ -14,10 +14,14 @@ android {
 
     defaultConfig {
         applicationId = "app.whatfits"
-        minSdk = 23
+        minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.0.9"
+        versionCode = 10
+        versionName = "0.0.10"
+
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -45,6 +49,9 @@ android {
     sourceSets.getByName("main").assets.directories.add(file("../../data").absolutePath)
     sourceSets.getByName("main").assets.directories.add(
         layout.buildDirectory.get().dir("generated/tessdataAssets").asFile.absolutePath,
+    )
+    sourceSets.getByName("main").assets.directories.add(
+        layout.buildDirectory.get().dir("generated/ppocrAssets").asFile.absolutePath,
     )
 
     packaging {
@@ -74,6 +81,10 @@ dependencies {
     implementation("androidx.camera:camera-view:1.6.1")
 
     implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
+    implementation(files("libs/ppocr-sdk-release.aar"))
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.21.1")
+    implementation("com.quickbirdstudios:opencv:4.5.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20251224")
@@ -85,6 +96,31 @@ val tessdataUrl =
         "65727574dfcd264acbb0c3e07860e4e9e9b22185/eng.traineddata"
 val tessdataSha256 = "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
 val tessdataFile = layout.buildDirectory.file("generated/tessdataAssets/tessdata/eng.traineddata")
+
+data class PinnedOcrAsset(
+    val url: String,
+    val sha256: String,
+    val relativePath: String,
+)
+
+val ppOcrAssets = listOf(
+    PinnedOcrAsset(
+        url = "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det_onnx/resolve/main/inference.onnx",
+        sha256 = "193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8",
+        relativePath = "models/det/inference.onnx",
+    ),
+    PinnedOcrAsset(
+        url = "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx/resolve/main/inference.onnx",
+        sha256 = "9ef676d6ed3c88256a2d92c640c44f25b0c40947e111b14b8be8f594091563e6",
+        relativePath = "models/rec/inference.onnx",
+    ),
+    PinnedOcrAsset(
+        url = "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx/resolve/main/inference.yml",
+        sha256 = "66170210bad538e83fff3c4a3867e547d6bf20b50d64b20347c4b913f3034ea1",
+        relativePath = "models/rec/inference.yml",
+    ),
+)
+val ppOcrAssetsRoot = layout.buildDirectory.dir("generated/ppocrAssets")
 
 fun sha256(file: File): String = MessageDigest.getInstance("SHA-256")
     .digest(file.readBytes())
@@ -109,8 +145,33 @@ val prepareTessdata by tasks.registering {
     }
 }
 
+val preparePpOcrModels by tasks.registering {
+    description = "Downloads pinned PP-OCRv6 tiny models for offline packaging."
+    outputs.files(ppOcrAssets.map { ppOcrAssetsRoot.map { root -> root.file(it.relativePath) } })
+
+    doLast {
+        val root = ppOcrAssetsRoot.get().asFile
+        ppOcrAssets.forEach { asset ->
+            val target = File(root, asset.relativePath)
+            if (target.isFile && sha256(target) == asset.sha256) return@forEach
+
+            target.parentFile.mkdirs()
+            val temporary = File(target.parentFile, "${target.name}.tmp")
+            URI.create(asset.url).toURL().openStream().use { input ->
+                temporary.outputStream().use { output -> input.copyTo(output) }
+            }
+            check(sha256(temporary) == asset.sha256) {
+                "Downloaded PP-OCR asset ${asset.relativePath} has an invalid SHA-256."
+            }
+            temporary.copyTo(target, overwrite = true)
+            temporary.delete()
+        }
+    }
+}
+
 tasks.named("preBuild").configure {
     dependsOn(prepareTessdata)
+    dependsOn(preparePpOcrModels)
 }
 
 val forbiddenRuntimeGroups = setOf(

@@ -10,7 +10,7 @@ What Fits? answers one high-stakes compatibility question for the Russian market
 device model -> compatible replacement -> supporting source
 ```
 
-The final product is a native Android application distributed through RuStore. The web UI is an auxiliary prototype, not the primary client. The current prototype covers printers and MFPs, contains 50 Pantum models for market `RU`, and all user-visible components are version `0.0.9`.
+The final product is a native Android application distributed through RuStore. The web UI is an auxiliary prototype, not the primary client. The current prototype covers printers and MFPs, contains 50 Pantum models for market `RU`, and all user-visible components are version `0.0.10`.
 
 Accuracy is more important than recall. A missing result is acceptable; a confidently wrong cartridge is not.
 
@@ -36,8 +36,9 @@ Accuracy is more important than recall. A missing result is acceptable; a confid
 - `android/`: native Kotlin/Jetpack Compose application for RuStore. Its core flow is offline-first and GMS-free.
 - `android/app/src/main/java/app/whatfits/catalog/`: local JSONL parsing and conservative device matching.
 - `android/app/src/main/java/app/whatfits/camera/`: CameraX capture that keeps the image on the device.
-- `android/app/src/main/java/app/whatfits/ocr/`: Tesseract4Android initialization, bounded image handling, and local OCR.
-- `android/app/build.gradle.kts`: pinned Android dependencies, bundled OCR model generation, and runtime dependency audit.
+- `android/app/src/main/java/app/whatfits/ocr/`: PP-OCRv6 primary recognition, Tesseract fallback, bounded image handling, and local OCR.
+- `android/app/build.gradle.kts`: pinned Android dependencies, verified bundled OCR model generation, and runtime dependency audit.
+- `android/third_party/`: provenance and license for the vendored official PaddleOCR Android SDK AAR.
 - `backend/requirements.txt`: pinned API dependencies.
 - `db/schema.sql`: PostgreSQL schema and reference data used when a new database volume is initialized.
 - `data/seed_format.schema.json`: JSON Schema for seed records.
@@ -151,10 +152,11 @@ The PostgreSQL integration suite is enabled with `RUN_DB_TESTS=1` after initiali
 ## Android and RuStore conventions
 
 - Target a native Kotlin and Jetpack Compose application. Camera features use CameraX; do not replace the client with a WebView.
-- Keep `minSdk` at 23 or lower unless a documented product decision explicitly narrows device support.
+- `minSdk` is 26 and the APK ABI is `arm64-v8a` starting with v0.0.10 because the official PaddleOCR Android SDK requires Android 8.0 and its universal native runtime makes the APK impractically large. This is a documented product tradeoff for materially better offline OCR; do not narrow support further without another explicit decision.
 - The only required Android permission in the current product is `CAMERA`. Do not add `INTERNET`, storage, advertising ID, contacts, location, microphone, or notification permissions without a feature that requires them and an explicit privacy review.
-- Use Tesseract4Android with the pinned `tessdata_fast` model bundled into the APK. Runtime model downloads are not allowed for the core OCR path.
-- Treat the SHA-256 verification for the build-time OCR model as a supply-chain control. Do not weaken it or use a moving branch URL.
+- Use the pinned official PaddleOCR Android SDK and PP-OCRv6 tiny ONNX models as the primary OCR path. Retain Tesseract4Android with pinned `tessdata_fast` as the local fallback.
+- All OCR models must be verified by SHA-256 during the build and bundled into the APK. Runtime model downloads are not allowed for the core OCR path.
+- Treat the SDK provenance record and SHA-256 verification for build-time OCR assets as supply-chain controls. Do not weaken them or use moving branch URLs.
 - Keep photos and raw OCR text on the device. Do not log them, save captures to shared storage, or upload them to the API.
 - During OCR quality testing, Android may display recognized text locally in a clearly labeled diagnostic card. Never transmit or log that diagnostic text.
 - The bundled catalog is the offline source of truth. Future network updates must be signed, validated, atomic, and retain the bundled catalog as a fallback.

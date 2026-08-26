@@ -58,7 +58,7 @@ import app.whatfits.catalog.Device
 import app.whatfits.catalog.FitResult
 import app.whatfits.catalog.Replacement
 import app.whatfits.ocr.ImageLoader
-import app.whatfits.ocr.TesseractOcrEngine
+import app.whatfits.ocr.OfflineOcrEngine
 import app.whatfits.ui.WhatFitsTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -82,7 +82,7 @@ private fun WhatFitsApp() {
     val catalogResult = remember { runCatching { CatalogRepository.load(context) } }
     val devices = catalogResult.getOrDefault(emptyList())
     val matcher = remember(devices) { CatalogMatcher(devices) }
-    val ocrEngine = remember { TesseractOcrEngine(context.applicationContext) }
+    val ocrEngine = remember { OfflineOcrEngine(context.applicationContext) }
 
     var query by rememberSaveable { mutableStateOf("") }
     var fitResult by remember { mutableStateOf<FitResult?>(null) }
@@ -112,7 +112,7 @@ private fun WhatFitsApp() {
         recognizedText = null
         scope.launch {
             val outcome = runCatching {
-                withContext(Dispatchers.Default) { ocrEngine.recognize(bitmap) }
+                ocrEngine.recognize(bitmap)
             }
             bitmap.recycle()
             processing = false
@@ -313,7 +313,7 @@ private fun SearchScreen(
             result?.let { ResultSection(it, onCandidate) }
 
             Text(
-                "What Fits? v0.0.9 · Offline-first Android prototype",
+                "What Fits? v0.0.10 · Offline-first Android prototype",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),

@@ -1,2 +1,4 @@
 -keep class com.googlecode.tesseract.android.** { *; }
 -dontwarn com.googlecode.tesseract.android.**
+-keep class com.paddle.ocr.** { *; }
+-keep class ai.onnxruntime.** { *; }
