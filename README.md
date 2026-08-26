@@ -1,4 +1,4 @@
-# What Fits? — Android RU prototype v0.0.7
+# What Fits? — Android RU prototype v0.0.8
 
 **What Fits?** помогает определить модель принтера или МФУ и показывает совместимые расходники вместе с источником, подтверждающим совместимость.
 
@@ -14,6 +14,7 @@
 - локальный поиск по встроенному RU-каталогу без подключения к интернету;
 - CameraX для съёмки шильдика и выбор готовой фотографии;
 - Tesseract4Android OCR с английской моделью, встроенной в APK;
+- локальный тестовый вывод полного текста, который OCR увидел на фотографии;
 - отсутствие runtime-зависимостей от Google Play Services, Firebase, ML Kit и Google Billing;
 - единственное обязательное Android-разрешение — доступ к камере;
 - Android unit-тесты, аудит зависимостей и автоматическая сборка debug APK в CI;
@@ -64,7 +65,7 @@ Android-клиент находится в `android/` и проектирует�
   :app:assembleDebug
 ```
 
-Для командной сборки нужны JDK 17, Android SDK Platform 36 и Build Tools 36.1.0. Версию Gradle 9.4.1 загрузит проектный Wrapper с проверкой SHA-256. Готовый файл появится в `android/app/build/outputs/apk/debug/app-debug.apk`. CI сохраняет его как артефакт `what-fits-v0.0.7-debug` на 14 дней.
+Для командной сборки нужны JDK 17, Android SDK Platform 36 и Build Tools 36.1.0. Версию Gradle 9.4.1 загрузит проектный Wrapper с проверкой SHA-256. Готовый файл появится в `android/app/build/outputs/apk/debug/app-debug.apk`. CI сохраняет его как артефакт `what-fits-v0.0.8-debug` на 14 дней.
 
 ## Главный принцип
 

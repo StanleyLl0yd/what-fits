@@ -19,7 +19,7 @@ services:
   api:
     build:
       context: ./backend
-    image: what-fits-api:0.0.7
+    image: what-fits-api:0.0.8
     working_dir: /app
     volumes:
       - ./backend:/app

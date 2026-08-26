@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
@@ -87,6 +89,7 @@ private fun WhatFitsApp() {
     var cameraOpen by rememberSaveable { mutableStateOf(false) }
     var processing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var recognizedText by rememberSaveable { mutableStateOf<String?>(null) }
 
     DisposableEffect(ocrEngine) {
         onDispose(ocrEngine::close)
@@ -95,6 +98,7 @@ private fun WhatFitsApp() {
     fun search(value: String) {
         query = value.trim()
         errorMessage = null
+        recognizedText = null
         fitResult = matcher.resolve(query)
     }
 
@@ -105,6 +109,7 @@ private fun WhatFitsApp() {
         }
         processing = true
         errorMessage = null
+        recognizedText = null
         scope.launch {
             val outcome = runCatching {
                 withContext(Dispatchers.Default) { ocrEngine.recognize(bitmap) }
@@ -112,6 +117,7 @@ private fun WhatFitsApp() {
             bitmap.recycle()
             processing = false
             outcome.onSuccess { recognized ->
+                recognizedText = recognized.ifBlank { "[текст не распознан]" }
                 fitResult = matcher.resolve(recognized)
                 cameraOpen = false
             }.onFailure {
@@ -155,6 +161,7 @@ private fun WhatFitsApp() {
                 catalogSize = devices.size,
                 result = fitResult,
                 processing = processing,
+                recognizedText = recognizedText,
                 startupError = catalogResult.exceptionOrNull()?.let {
                     "Встроенный каталог не загрузился."
                 },
@@ -175,6 +182,7 @@ private fun SearchScreen(
     catalogSize: Int,
     result: FitResult?,
     processing: Boolean,
+    recognizedText: String?,
     startupError: String?,
     errorMessage: String?,
     onQueryChange: (String) -> Unit,
@@ -298,15 +306,37 @@ private fun SearchScreen(
                 }
             }
 
+            recognizedText?.let { OcrTextCard(it) }
+
             startupError?.let { ErrorCard(it) }
             errorMessage?.let { ErrorCard(it) }
             result?.let { ResultSection(it, onCandidate) }
 
             Text(
-                "What Fits? v0.0.7 · Offline-first Android prototype",
+                "What Fits? v0.0.8 · Offline-first Android prototype",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun OcrTextCard(text: String) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Тестовый режим · распознано на фото", fontWeight = FontWeight.Bold)
+            SelectionContainer {
+                Text(text, fontFamily = FontFamily.Monospace)
+            }
+            Text(
+                "Этот текст показывается только на телефоне и никуда не отправляется.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )

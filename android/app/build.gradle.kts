@@ -16,8 +16,8 @@ android {
         applicationId = "app.whatfits"
         minSdk = 23
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.0.7"
+        versionCode = 8
+        versionName = "0.0.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

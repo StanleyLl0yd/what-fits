@@ -10,7 +10,7 @@ What Fits? answers one high-stakes compatibility question for the Russian market
 device model -> compatible replacement -> supporting source
 ```
 
-The final product is a native Android application distributed through RuStore. The web UI is an auxiliary prototype, not the primary client. The current prototype covers printers and MFPs, contains 50 Pantum models for market `RU`, and all user-visible components are version `0.0.7`.
+The final product is a native Android application distributed through RuStore. The web UI is an auxiliary prototype, not the primary client. The current prototype covers printers and MFPs, contains 50 Pantum models for market `RU`, and all user-visible components are version `0.0.8`.
 
 Accuracy is more important than recall. A missing result is acceptable; a confidently wrong cartridge is not.
 
@@ -156,6 +156,7 @@ The PostgreSQL integration suite is enabled with `RUN_DB_TESTS=1` after initiali
 - Use Tesseract4Android with the pinned `tessdata_fast` model bundled into the APK. Runtime model downloads are not allowed for the core OCR path.
 - Treat the SHA-256 verification for the build-time OCR model as a supply-chain control. Do not weaken it or use a moving branch URL.
 - Keep photos and raw OCR text on the device. Do not log them, save captures to shared storage, or upload them to the API.
+- During OCR quality testing, Android may display recognized text locally in a clearly labeled diagnostic card. Never transmit or log that diagnostic text.
 - The bundled catalog is the offline source of truth. Future network updates must be signed, validated, atomic, and retain the bundled catalog as a fallback.
 - External evidence links may require a browser and network, but lack of network must not prevent showing the locally stored compatibility result.
 - RuStore release signing keys, tokens, and console credentials must never be committed. CI may build unsigned/debug artifacts without them.
