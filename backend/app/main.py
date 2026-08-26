@@ -22,7 +22,7 @@ MAX_OCR_TEXT_CHARS = 20_000
 ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_PHOTO_FORMATS = {"JPEG", "PNG", "WEBP"}
 
-app = FastAPI(title="What Fits? API", version="0.0.6")
+app = FastAPI(title="What Fits? API", version="0.0.7")
 
 
 def normalize(value: str) -> str:

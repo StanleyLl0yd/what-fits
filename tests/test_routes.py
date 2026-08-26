@@ -26,7 +26,7 @@ def test_root_serves_current_browser_version():
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "What Fits? v0.0.6" in response.text
+    assert "What Fits? v0.0.7" in response.text
 
 
 def test_fit_returns_exact_device_and_fits(monkeypatch):

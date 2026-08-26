@@ -10,7 +10,7 @@ What Fits? answers one high-stakes compatibility question for the Russian market
 device model -> compatible replacement -> supporting source
 ```
 
-The current prototype covers printers and MFPs. Its catalog contains 50 Pantum models for market `RU`; the running API and browser UI are version `0.0.6`.
+The final product is a native Android application distributed through RuStore. The web UI is an auxiliary prototype, not the primary client. The current prototype covers printers and MFPs, contains 50 Pantum models for market `RU`, and all user-visible components are version `0.0.7`.
 
 Accuracy is more important than recall. A missing result is acceptable; a confidently wrong cartridge is not.
 
@@ -19,6 +19,9 @@ Accuracy is more important than recall. A missing result is acceptable; a confid
 - Never infer a compatible part from a similar model name alone.
 - Never silently turn a fuzzy match into an exact device match. Ask the user to choose among candidates.
 - OCR is only an input method. OCR text must pass through the same device resolution and `/v1/fit` compatibility logic as typed text.
+- The Android application must work without Google Play Services and without a network connection for camera capture, OCR, manual model search, and compatibility results from its bundled catalog.
+- Do not add `com.google.android.gms`, Firebase, ML Kit, Google Billing, Google Analytics, FCM, or Google In-App Updates to Android runtime configurations. The `verifyNoGoogleRuntime` task is mandatory and must remain enabled in CI.
+- The RuStore client must be a complete native application, not a WebView wrapper around the browser prototype.
 - Keep market-specific compatibility explicit. Do not copy EU, US, CN, or generic catalog data into `RU` without evidence for the Russian version.
 - Show “verified” or the equivalent Russian wording only for a compatibility edge whose stored status and evidence justify it.
 - Every compatibility claim must retain its source, publisher, market, and verification date.
@@ -30,6 +33,11 @@ Accuracy is more important than recall. A missing result is acceptable; a confid
 - `backend/app/main.py`: FastAPI application, bounded in-memory OCR, device matching, compatibility queries, and the root page handler.
 - `backend/static/index.html`: dependency-free, same-origin browser interface. It calls `/v1/fit` and `/v1/ocr`.
 - `backend/Dockerfile`: Python 3.12 API image with the Tesseract English OCR engine.
+- `android/`: native Kotlin/Jetpack Compose application for RuStore. Its core flow is offline-first and GMS-free.
+- `android/app/src/main/java/app/whatfits/catalog/`: local JSONL parsing and conservative device matching.
+- `android/app/src/main/java/app/whatfits/camera/`: CameraX capture that keeps the image on the device.
+- `android/app/src/main/java/app/whatfits/ocr/`: Tesseract4Android initialization, bounded image handling, and local OCR.
+- `android/app/build.gradle.kts`: pinned Android dependencies, bundled OCR model generation, and runtime dependency audit.
 - `backend/requirements.txt`: pinned API dependencies.
 - `db/schema.sql`: PostgreSQL schema and reference data used when a new database volume is initialized.
 - `data/seed_format.schema.json`: JSON Schema for seed records.
@@ -42,6 +50,7 @@ Accuracy is more important than recall. A missing result is acceptable; a confid
 - `docs/index.html`: separate minimal GitHub Pages project page; it is not the FastAPI UI.
 - `requirements-dev.txt`: pinned local and CI test dependencies.
 - `tests/`: unit, catalog-policy, and PostgreSQL integration tests.
+- `android/app/src/test/`: JVM tests for the Android catalog parser and matching rules.
 - `tests/fixtures/camera/`: manifest and privacy rules for future anonymized OCR regression images.
 - `.github/workflows/ci.yml`: CI validation on pushes and pull requests.
 
@@ -60,6 +69,8 @@ Accuracy is more important than recall. A missing result is acceptable; a confid
 Exact matching is deliberately OCR-friendly: a normalized model identifier may occur inside a longer label string, and the longest matching identifier wins. Preserve this behavior when refactoring. If multiple devices share the best exact rank, return `AMBIGUOUS` rather than picking one.
 
 The normalization contract is shared conceptually by the API and loaders: case-fold, convert `ё` to `е`, and remove non-alphanumeric separators. Keep database identifiers and query normalization compatible.
+
+The Android offline matcher must preserve the same certainty contract: identifiers embedded in longer OCR text are eligible for exact resolution, the longest identifier wins, equal best matches return `AMBIGUOUS`, and fuzzy input never becomes `EXACT` without confirmation. Android loads `data/seed_ru_printers_v0.1.jsonl` into the APK; do not create a divergent hand-maintained mobile catalog.
 
 When changing response fields or statuses, update the browser UI and documentation in the same change. When changing a user-visible release version, keep the FastAPI version and the UI footer aligned.
 
@@ -96,6 +107,12 @@ docker compose up -d --build api
 
 The UI is at `http://localhost:8000/`; interactive API documentation is at `http://localhost:8000/docs`.
 
+Build the Android application with JDK 17, Android SDK Platform 36, and Build Tools 36.1.0. Use the checked-in Gradle Wrapper; it pins Gradle 9.4.1 and verifies the distribution checksum:
+
+```bash
+./android/gradlew -p android --no-daemon :app:testDebugUnitTest :app:lintDebug :app:verifyNoGoogleRuntime :app:assembleDebug
+```
+
 Do not delete the PostgreSQL volume as a routine reset. It destroys local data. Also note that edits to `db/schema.sql` are not applied to an already initialized volume automatically.
 
 ## Required checks
@@ -107,6 +124,8 @@ python tools/validate_seed.py
 python -m compileall -q backend tools tests
 python -m pytest
 ```
+
+For Android changes, also run the Android build command above. It must produce `android/app/build/outputs/apk/debug/app-debug.apk`; CI uploads this file as a short-lived test artifact.
 
 For API, matching, database, or UI changes, also run the stack and check:
 
@@ -128,6 +147,19 @@ Expected invariants:
 - OCR bounds encoded size, decoded pixel count, processing dimensions, text length, and recognition time; it does not persist the image or return raw recognized text.
 
 The PostgreSQL integration suite is enabled with `RUN_DB_TESTS=1` after initializing and loading a test database. The generated-image Tesseract test additionally uses `RUN_OCR_TESTS=1` and requires the OCR binary plus DejaVu fonts. Add focused tests when introducing non-trivial matching, parsing, upload, or schema behavior; do not rely only on manual browser checks.
+
+## Android and RuStore conventions
+
+- Target a native Kotlin and Jetpack Compose application. Camera features use CameraX; do not replace the client with a WebView.
+- Keep `minSdk` at 23 or lower unless a documented product decision explicitly narrows device support.
+- The only required Android permission in the current product is `CAMERA`. Do not add `INTERNET`, storage, advertising ID, contacts, location, microphone, or notification permissions without a feature that requires them and an explicit privacy review.
+- Use Tesseract4Android with the pinned `tessdata_fast` model bundled into the APK. Runtime model downloads are not allowed for the core OCR path.
+- Treat the SHA-256 verification for the build-time OCR model as a supply-chain control. Do not weaken it or use a moving branch URL.
+- Keep photos and raw OCR text on the device. Do not log them, save captures to shared storage, or upload them to the API.
+- The bundled catalog is the offline source of truth. Future network updates must be signed, validated, atomic, and retain the bundled catalog as a fallback.
+- External evidence links may require a browser and network, but lack of network must not prevent showing the locally stored compatibility result.
+- RuStore release signing keys, tokens, and console credentials must never be committed. CI may build unsigned/debug artifacts without them.
+- Keep `versionName`, `versionCode`, the FastAPI version, both web version labels, README, and this file synchronized for product releases.
 
 ## Python and SQL conventions
 

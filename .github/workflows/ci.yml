@@ -78,3 +78,42 @@ jobs:
 
       - name: Build API image
         run: docker build -t what-fits-api:ci backend
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-36" "build-tools;36.1.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Test, audit, and build Android app
+        run: >-
+          ./android/gradlew -p android --no-daemon
+          :app:testDebugUnitTest
+          :app:lintDebug
+          :app:verifyNoGoogleRuntime
+          :app:assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: what-fits-v0.0.7-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

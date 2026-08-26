@@ -7,3 +7,9 @@ __pycache__/
 .coverage
 htmlcov/
 
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/**/build/
+*.jks
+*.keystore
