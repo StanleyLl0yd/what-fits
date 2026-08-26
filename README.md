@@ -71,7 +71,7 @@ Android-клиент находится в `android/` и проектирует�
 
 Для командной сборки нужны JDK 17, Android SDK Platform 36 и Build Tools 36.1.0. Версию Gradle 9.4.1 загрузит проектный Wrapper с проверкой SHA-256. Готовый файл появится в `android/app/build/outputs/apk/debug/app-debug.apk`. CI сохраняет его как артефакт `what-fits-v0.0.10-debug` на 14 дней.
 
-Подписанный тестовый APK распространяется отдельно и не хранится в репозитории. Локальное имя артефакта v0.0.10: `release/what-fits-v0.0.10-release-signed.apk`.
+Подписанный тестовый APK распространяется отдельно и не хранится в репозитории. Имя локального артефакта v0.0.10: `release/what-fits-v0.0.10-release-signed.apk`.
 
 ## Главный принцип
 
